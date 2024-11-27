@@ -25,6 +25,30 @@ type ExampleReply struct {
 // Add your RPC definitions here.
 
 
+const (
+	AskForTask MsgType= iota
+	MapTaskAlloc
+	ReduceTaskAlloc
+	MapSuccess
+	MapFailes
+	ReduceSuccess
+	ReduceFailed
+	Shutdown
+	Wait
+)
+
+type MessageSend struct{
+	MsgType MsgType
+	TaskID int
+}
+
+type MessageReply struct{
+	MsgType MsgType
+	NReduce int
+	TaskID int
+	TaskName string
+}
+
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
 // Can't use the current directory since
