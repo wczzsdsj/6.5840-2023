@@ -24,7 +24,15 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	return nil
 }
 
+func (c *Coordinator)NoticeResult(req *MessageSend,reply *MessageReply)error{
 
+
+}
+
+func (c *Coordinator)AskForTask(req *MessageSend,reply *MessageReply)error{
+	
+
+}
 //
 // start a thread that listens for RPCs from worker.go
 //
