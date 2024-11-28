@@ -1,9 +1,19 @@
 package mr
 
-import "fmt"
-import "log"
-import "net/rpc"
-import "hash/fnv"
+import (
+	"encoding/json"
+	"fmt"
+	"hash/fnv"
+	"io"
+	"net/rpc"
+	"os"
+	"sort"
+	"strconv"
+	"time"
+	"log"
+	"path/filepath"
+	"regexp"
+)
 
 
 //
@@ -13,7 +23,11 @@ type KeyValue struct {
 	Key   string
 	Value string
 }
-
+type ByKey []KeyValue
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -142,7 +156,72 @@ func DelFileByMapId(targetNumber int, path string) error {
 	}
 	return nil
 }
+func DelFileByReduceId(targetNumber int, path string) error {
+	// 创建正则表达式，X 是可变的指定数字
+	pattern := fmt.Sprintf(`^mr-out-\d+-%d$`, targetNumber)
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		return err
+	}
 
+	// 读取当前目录中的文件
+	files, err := os.ReadDir(path)
+	if err != nil {
+		return err
+	}
+
+	// 遍历文件，查找匹配的文件
+	for _, file := range files {
+		if file.IsDir() {
+			continue // 跳过目录
+		}
+		fileName := file.Name()
+		if regex.MatchString(fileName) {
+			// 匹配到了文件，删除它
+			filePath := filepath.Join(path, file.Name())
+			err := os.Remove(filePath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func ReadSpecificFile(targetNumber int, path string) (fileList []*os.File, err error) {
+	pattern := fmt.Sprintf(`^mr-out-\d+-%d$`, targetNumber)
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	// 读取当前目录中的文件
+	files, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// 遍历文件，查找匹配的文件
+	for _, fileEntry := range files {
+		if fileEntry.IsDir() {
+			continue // 跳过目录
+		}
+		fileName := fileEntry.Name()
+		if regex.MatchString(fileName) {
+			filePath := filepath.Join(path, fileEntry.Name())
+			file, err := os.Open(filePath)
+			if err != nil {
+				log.Fatalf("cannot open %v", filePath)
+				for _, oFile := range fileList {
+					oFile.Close()
+				}
+				return nil, err
+			}
+			fileList = append(fileList, file)
+		}
+	}
+	return fileList, nil
+}
 
 //reduce处理函数
 func HandleReduceTask(reply *MessageReply, reducef func(string, []string) string) error {
@@ -217,8 +296,8 @@ func CallExample() {
 	// the "Coordinator.Example" tells the
 	// receiving server that we'd like to call
 	// the Example() method of struct Coordinator.
-	ok := call("Coordinator.Example", &args, &reply)
-	if ok {
+	err := call("Coordinator.Example", &args, &reply)
+	if err!=nil {
 		// reply.Y should be 100.
 		fmt.Printf("reply.Y %v\n", reply.Y)
 	} else {
@@ -232,6 +311,9 @@ func CallForReportStatus(succesType MsgType, taskID int) error {
         TaskID:  taskID,
     }
 	err:=call("Coordinator.NoticeResult",&args,nil)
+	if err != nil {
+		fmt.Printf("Worker: Report success failed: %s\n", err.Error())
+	}
 	return nil
 }
 
@@ -255,7 +337,7 @@ func CallForTask() *MessageReply{
 // usually returns true.
 // returns false if something goes wrong.
 //
-func call(rpcname string, args interface{}, reply interface{}) bool {
+func call(rpcname string, args interface{}, reply interface{}) error {
 	// c, err := rpc.DialHTTP("tcp", "127.0.0.1"+":1234")
 	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
@@ -265,10 +347,5 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 	defer c.Close()
 
 	err = c.Call(rpcname, args, reply)
-	if err == nil {
-		return true
-	}
-
-	fmt.Println(err)
-	return false
+	return err
 }
