@@ -244,8 +244,7 @@ func CallForTask() *MessageReply{
 	if err==nil{
 		// fmt.Printf("TaskName %v, NReduce %v, taskID %v\n", reply.TaskName, reply.NReduce, reply.TaskID)
 		return &reply
-	}
-	else {
+	}else {
 		log.Println(err.Error())
 		return nil
 	}

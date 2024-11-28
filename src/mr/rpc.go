@@ -24,13 +24,13 @@ type ExampleReply struct {
 
 // Add your RPC definitions here.
 
-
+type MsgType int
 const (
 	AskForTask MsgType= iota
 	MapTaskAlloc
 	ReduceTaskAlloc
 	MapSuccess
-	MapFailes
+	MapFailed
 	ReduceSuccess
 	ReduceFailed
 	Shutdown

@@ -5,6 +5,8 @@ import "net"
 import "os"
 import "net/rpc"
 import "net/http"
+import "time"
+import "sync"
 
 type taskStatus int
 
@@ -221,7 +223,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{
 		NReduce:nReduce,
 		MapTasks:make(map[string]*MapTaskInfo),
-		ReduceTasks:make([]*ReduceTaskInfo,nReduce)
+		ReduceTasks:make([]*ReduceTaskInfo,nReduce),
 	}
 
 	// Your code here.
